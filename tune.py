@@ -122,4 +122,3 @@ if __name__=='__main__':
                         LGBMClassifier(**jl, verbose=-1)
                     )
     cross_val_model(train, test, lgbm, verbose=True)
-    
