@@ -109,7 +109,6 @@ def op(p='lgbm'):
         study.optimize(lgbm_objective, 5)
         joblib.dump(study, f"./output/train/lgb_optuna_5fold_5trail.pkl")
 
-
 if __name__=='__main__':
     op()
     jl = joblib.load(f"./output/train/lgb_optuna_5fold_5trail.pkl")
