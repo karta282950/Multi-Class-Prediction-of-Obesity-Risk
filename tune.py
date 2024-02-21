@@ -111,7 +111,7 @@ def op(p='lgbm'):
 
 
 if __name__=='__main__':
-    #op()
+    op()
     jl = joblib.load(f"./output/train/lgb_optuna_5fold_5trail.pkl")
     print('Best Trial', jl.best_trial.params)
     numerical_columns = train.select_dtypes(include=['int64', 'float64']).columns.tolist()
