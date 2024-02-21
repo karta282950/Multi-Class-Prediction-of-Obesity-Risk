@@ -7,7 +7,7 @@ from sklearn import clone
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedKFold
 import pandas as pd
-
+from wandb.lightgbm import wandb_callback, log_summary
 
 target_mapping = {
                   'Insufficient_Weight':0,
@@ -27,7 +27,7 @@ class cfg:
 # Define a method for Cross validation here we are using StartifiedKFold
 skf = StratifiedKFold(n_splits=cfg.n_splits)
 
-def cross_val_model(train, test, estimators, cv = skf, verbose = True):
+def cross_val_model(train, test, estimators, cv=skf, verbose=True, is_lgb=True):
     '''
         estimators : pipeline consists preprocessing, encoder & model
         cv : Method for cross validation (default: StratifiedKfold)
@@ -50,14 +50,22 @@ def cross_val_model(train, test, estimators, cv = skf, verbose = True):
         #define valid set
         X_valid = X.iloc[valid_ind]
         y_valid = y.iloc[valid_ind]
-
-        model.fit(X_train, y_train)
-        if verbose:
-            print("-" * 100)
-            print(f"Fold: {fold}")
-            print(f"Train Accuracy Score: {accuracy_score(y_true=y_train,y_pred=model.predict(X_train))}")
-            print(f"Valid Accuracy Score: {accuracy_score(y_true=y_valid,y_pred=model.predict(X_valid))}")
-            print("-" * 100)
+        if is_lgb:
+            model.train(X_train, y_train, X_valid, y_valid, callbacks=[wandb_callback()])
+            if verbose:
+                print("-" * 100)
+                print(f"Fold: {fold}")
+                print(f"Train Accuracy Score: {accuracy_score(y_true=y_train,y_pred=model.predict(X_train))}")
+                print(f"Valid Accuracy Score: {accuracy_score(y_true=y_valid,y_pred=model.predict(X_valid))}")
+                print("-" * 100)
+        else:
+            model.fit(X_train, y_train)
+            if verbose:
+                print("-" * 100)
+                print(f"Fold: {fold}")
+                print(f"Train Accuracy Score: {accuracy_score(y_true=y_train,y_pred=model.predict(X_train))}")
+                print(f"Valid Accuracy Score: {accuracy_score(y_true=y_valid,y_pred=model.predict(X_valid))}")
+                print("-" * 100)
 
         
         test_predictions += model.predict_proba(test)/cv.get_n_splits()
