@@ -23,8 +23,9 @@ from run.prepare_data import *
 from src.tune import *
 
 class cfg:
-    cwd = os.getcwd()
-    file_path = os.path.join(cwd, 'data')
+    my_path = os.path.abspath(os.path.dirname(__file__))
+
+    file_path = os.path.join(my_path, 'data')
     RANDOM_SEED = 42
     target_mapping = {
                   'Insufficient_Weight':0,
