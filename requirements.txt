@@ -2,3 +2,5 @@ optuna
 wandb
 category_encoders
 catboost
+hydra
+omegaconf

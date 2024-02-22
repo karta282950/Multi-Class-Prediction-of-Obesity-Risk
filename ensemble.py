@@ -1,13 +1,17 @@
 from matplotlib import pyplot as plt
 import pandas as pd
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix 
-
+from xgboost import XGBClassifier
+from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
+from sklearn.ensemble import VotingClassifier
 
 # skf = StratifiedKFold(n_splits=5)
 weights = {"rfc_":0,
            "lgbm_":3,
            "xgb_":1,
            "cat_":0}
+
 tmp = oof_list.copy()
 for k,v in target_mapping.items():
     tmp[f"{k}"] = (weights['rfc_']*tmp[f"rfc_{k}"] +

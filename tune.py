@@ -21,7 +21,8 @@ from sklearn.pipeline import make_pipeline
 from src.utils import cross_val_model
 from run.prepare_data import *
 from src.tune import *
-
+from omegaconf import DictConfig
+import hydra
 class cfg:
     my_path = os.path.abspath(os.path.dirname(__file__))
 
@@ -79,7 +80,7 @@ def lgbm_objective(trial):
         'reg_alpha' : trial.suggest_float('reg_alpha', .1, 10, log = True),
         'n_estimators' : 1000,
         'random_state' : cfg.RANDOM_SEED,
-        'device_type' : "cpu",
+        'device_type' : "gpu",
         'num_leaves': trial.suggest_int('num_leaves', 10, 1000),
         'objective': 'multiclass_ova',
         #'boosting_type' : 'dart',
@@ -104,12 +105,13 @@ def cal_cv(model=RFC):
     for k,v in cfg.target_mapping.items():
         predict_list[f"rfc_{k}"] = test_predictions[:,v]
 
-def op(p='lgbm'):
+def op(p='lgbm', num_trail=5):
     warnings.filterwarnings("ignore")
     if p=='lgbm':
         study = optuna.create_study(direction='maximize', study_name="LGBM")
-        study.optimize(lgbm_objective, 5)
-        joblib.dump(study, f"./output/train/lgb_optuna_5fold_5trail.pkl")
+        study.optimize(lgbm_objective, num_trail)
+        
+        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_5trail.pkl'))
 
 if __name__=='__main__':
     op()
