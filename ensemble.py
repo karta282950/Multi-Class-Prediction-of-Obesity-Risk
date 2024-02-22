@@ -1,59 +1,58 @@
 from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
+from sklearn.metrics import accuracy_score
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix 
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
 from sklearn.ensemble import VotingClassifier
 
-# skf = StratifiedKFold(n_splits=5)
-weights = {"rfc_":0,
-           "lgbm_":3,
-           "xgb_":1,
-           "cat_":0}
-
-tmp = oof_list.copy()
-for k,v in target_mapping.items():
-    tmp[f"{k}"] = (weights['rfc_']*tmp[f"rfc_{k}"] +
-              weights['lgbm_']*tmp[f"lgbm_{k}"]+
-              weights['xgb_']*tmp[f"xgb_{k}"]+
-              weights['cat_']*tmp[f"cat_{k}"])    
-tmp['pred'] = tmp[target_mapping.keys()].idxmax(axis = 1)
-tmp['label'] = train[TARGET]
-print(f"Ensemble Accuracy Scoe: {accuracy_score(train[TARGET],tmp['pred'])}")
+def hill_climbing(x, y, x_test):
     
-cm = confusion_matrix(y_true = tmp['label'].map(target_mapping),
-                      y_pred = tmp['pred'].map(target_mapping),
-                     normalize='true')
+    # Evaluating oof predictions
+    scores = {}
+    for col in x.columns:
+        scores[col] = accuracy_score(y, x[col])
 
-cm = cm.round(2)
-plt.figure(figsize=(8,8))
-disp = ConfusionMatrixDisplay(confusion_matrix = cm,
-                              display_labels = target_mapping.keys())
-disp.plot(xticks_rotation=50)
-plt.tight_layout()
-plt.show()
+    # Sorting the model scores
+    scores = {k: v for k, v in sorted(scores.items(), key = lambda item: item[1], reverse = True)}
 
-"""   BEST     """
+    # Sort oof_df and test_preds
+    x = x[list(scores.keys())]
+    x_test = x_test[list(scores.keys())]
 
-# Best LB [0,1,0,0]
-# Average Train Score:0.9142044335854003
-# Average Valid Score:0.91420543252078
+    STOP = False
+    current_best_ensemble = x.iloc[:,0]
+    current_best_test_preds = x_test.iloc[:,0]
+    MODELS = x.iloc[:,1:]
+    weight_range = np.arange(-0.5, 0.51, 0.01) 
+    history = [accuracy_score(y, current_best_ensemble)]
+    j = 0
 
-# Best CV [1,3, 1,1]
-# Average Train Score:0.9168308163711971
-# Average Valid Score:0.9168308163711971
-# adding orignal data improves score
+    while not STOP:
+        j += 1
+        potential_new_best_cv_score = accuracy_score(y, current_best_ensemble)
+        k_best, wgt_best = None, None
+        for k in MODELS:
+            for wgt in weight_range:
+                potential_ensemble = (1 - wgt) * current_best_ensemble + wgt * MODELS[k]
+                cv_score = accuracy_score(y, potential_ensemble)
+                if cv_score > potential_new_best_cv_score:
+                    potential_new_best_cv_score = cv_score
+                    k_best, wgt_best = k, wgt
 
-
-for k,v in target_mapping.items():
-    predict_list[f"{k}"] = (weights['rfc_']*predict_list[f"rfc_{k}"]+
-                            weights['lgbm_']*predict_list[f"lgbm_{k}"]+
-                            weights['xgb_']*predict_list[f"xgb_{k}"]+
-                            weights['cat_']*predict_list[f"cat_{k}"])
-
-final_pred = predict_list[target_mapping.keys()].idxmax(axis = 1)
-
-sample_sub[TARGET] = final_pred
-sample_sub.to_csv("submission.csv",index=False)
-sample_sub
+        if k_best is not None:
+            current_best_ensemble = (1 - wgt_best) * current_best_ensemble + wgt_best * MODELS[k_best]
+            current_best_test_preds = (1 - wgt_best) * current_best_test_preds + wgt_best * x_test[k_best]
+            MODELS.drop(k_best, axis = 1, inplace = True)
+            if MODELS.shape[1] == 0:
+                STOP = True
+            history.append(potential_new_best_cv_score)
+        else:
+            STOP = True
+        
+    hill_ens_pred_1 = current_best_ensemble
+    hill_ens_pred_2 = current_best_test_preds
+    
+    return [hill_ens_pred_1, hill_ens_pred_2]

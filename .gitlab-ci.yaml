@@ -1,0 +1,24 @@
+# .gitlab-ci.yml
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  image: docker:19.03.12
+  services:
+    - docker:19.03.12-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE .
+    - docker push $CI_REGISTRY_IMAGE
+
+test:
+  stage: test
+  image: python:3.8
+  before_script:
+    #- pip install -r requirements.txt
+  script:
+    - python predict.py

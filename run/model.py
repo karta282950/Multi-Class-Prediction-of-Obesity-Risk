@@ -1,33 +1,27 @@
 import wandb 
+import joblib
+from lightgbm import LGBMClassifier
 
-params = {
-    "boosting_type": "gbdt",
-    "objective": "regression",
-    "metric": ["rmse", "l2", "l1", "huber"],
-    "num_leaves": 31,
-    "learning_rate": 0.05,
-    "feature_fraction": 0.9,
-    "bagging_fraction": 0.8,
-    "bagging_freq": 5,
-    "verbosity": 0,
-}
-y_train = df_train[0]
-y_test = df_test[0]
-X_train = df_train.drop(0, axis=1)
-X_test = df_test.drop(0, axis=1)
+def lgb_train_and_predict(p):
 
-# create dataset for lightgbm
-lgb_train = lgb.Dataset(X_train, y_train)
-lgb_eval = lgb.Dataset(X_test, y_test, reference=lgb_train)
+    lgbm = lgb.train(
+        params,
+        lgb_train,
+        num_boost_round=30,
+        valid_sets=lgb_eval,
+        valid_names=("validation"),
+        callbacks=[wandb_callback()],
+        early_stopping_rounds=5,
+    )
 
-wandb.init(project="my-lightgbm-project", config=params)
+def cat_train_and_predict(p):
+    pass
 
-gbm = lgb.train(
-    params,
-    lgb_train,
-    num_boost_round=30,
-    valid_sets=lgb_eval,
-    valid_names=("validation"),
-    callbacks=[wandb_callback()],
-    early_stopping_rounds=5,
-)
+def rfc_train_and_predict(p):
+    pass
+
+def xgb_train_and_predict(p):
+    pass
+
+def nn_train_and_predict(p):
+    pass

@@ -105,24 +105,48 @@ def cal_cv(model=RFC):
     for k,v in cfg.target_mapping.items():
         predict_list[f"rfc_{k}"] = test_predictions[:,v]
 
+@hydra.op(config_path="run/conf", config_name="tune", version_base="1.1")
 def op(p='lgbm', num_trail=5):
     warnings.filterwarnings("ignore")
     if p=='lgbm':
         study = optuna.create_study(direction='maximize', study_name="LGBM")
         study.optimize(lgbm_objective, num_trail)
-        
-        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_5trail.pkl'))
+        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+    if p=='rfc':
+        study = optuna.create_study(direction='maximize', study_name="RFC")
+        study.optimize(lgbm_objective, num_trail)
+        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+    if p=='xgb':
+        study = optuna.create_study(direction='maximize', study_name="XGB")
+        study.optimize(lgbm_objective, num_trail)
+        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+    if p=='cat':
+        study = optuna.create_study(direction='maximize', study_name="CAT")
+        study.optimize(lgbm_objective, num_trail)
+        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+
+def train_and_predict(p='lgb'):
+    if p=='lgb':
+        model = make_pipeline(
+                        ColumnTransformer(
+                        transformers=[('num', StandardScaler(), numerical_columns),
+                                  ('cat', OneHotEncoder(handle_unknown="ignore"), categorical_columns)]),
+                        LGBMClassifier(**jl.best_params, verbose=-1)
+                    )
+    return model
 
 if __name__=='__main__':
     op()
     jl = joblib.load(os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_5trail.pkl'))
     print('Best Trial', jl.best_trial.params)
-    numerical_columns = train.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    wandb.init(project="multi-class-prediction-of-obesity-risk", config=jl.best_trial.params, name='lgb_fold5_op5')
 
-    lgbm = make_pipeline(    
+    lgbm = make_pipeline(
                         ColumnTransformer(
                         transformers=[('num', StandardScaler(), numerical_columns),
                                   ('cat', OneHotEncoder(handle_unknown="ignore"), categorical_columns)]),
-                        LGBMClassifier(**jl, verbose=-1)
+                        LGBMClassifier(**jl.best_params, verbose=-1)
                     )
-    cross_val_model(train, test, lgbm, verbose=True)
+    val_scores, _, _ = cross_val_model(train, test, lgbm, verbose=True) # 有test predict
+    wandb.log({"val_acc": np.array(val_scores).mean()})
+    log_summary(lgbm, save_model_checkpoint=True)
