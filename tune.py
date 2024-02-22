@@ -71,31 +71,6 @@ RFC = make_pipeline(
         RandomForestClassifier(random_state=cfg.RANDOM_SEED)
         )
 
-def lgbm_objective(trial):
-    params = {
-        'learning_rate' : trial.suggest_float('learning_rate', .001, .1, log = True),
-        'max_depth' : trial.suggest_int('max_depth', 2, 20),
-        'subsample' : trial.suggest_float('subsample', .5, 1),
-        'min_child_weight' : trial.suggest_float('min_child_weight', .1, 15, log = True),
-        'reg_lambda' : trial.suggest_float('reg_lambda', .1, 20, log = True),
-        'reg_alpha' : trial.suggest_float('reg_alpha', .1, 10, log = True),
-        'n_estimators' : 1000,
-        'random_state' : cfg.RANDOM_SEED,
-        'device_type' : "gpu",
-        'num_leaves': trial.suggest_int('num_leaves', 10, 1000),
-        'objective': 'multiclass_ova',
-        #'boosting_type' : 'dart',
-    }
-    
-    optuna_model = make_pipeline(
-                                ExtractFeatures,
-                                MEstimateEncoder(cols=[
-                                    'Gender','family_history_with_overweight','FAVC','CAEC', 'SMOKE','SCC','CALC','MTRANS']),
-                                LGBMClassifier(**params,verbose=-1)
-                                )
-    _, val_scores, _, _ = cross_val_model(train, test, optuna_model, verbose=False)
-    return np.array(val_scores).mean()
-
 def cal_cv(model=RFC):
     _, val_scores, val_predictions, test_predictions = cross_val_model(train, test, model)
 
@@ -162,7 +137,7 @@ if __name__=='__main__':
     tune = True
     p = 'xgb'
     if tune:
-        op()
+        op(p)
     if not tune:
         jl = joblib.load(os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
         print('Best Trial', jl.best_trial.params)
