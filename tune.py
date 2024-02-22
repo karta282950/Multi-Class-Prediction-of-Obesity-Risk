@@ -105,7 +105,7 @@ def cal_cv(model=RFC):
     for k,v in cfg.target_mapping.items():
         predict_list[f"rfc_{k}"] = test_predictions[:,v]
 
-@hydra.main(config_path="run/conf", config_name="tune", version_base="1.1")
+#@hydra.main(config_path="run/conf", config_name="tune", version_base="1.1")
 def op(p='lgbm', num_trail=5):
     warnings.filterwarnings("ignore")
     if p=='lgbm':
