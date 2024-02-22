@@ -113,17 +113,17 @@ def op(p='lgbm', num_trail=50):
         study = optuna.create_study(direction='maximize', study_name="LGBM")
         study.optimize(lgbm_objective, num_trail)
         joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
-    if p=='rfc':
-        study = optuna.create_study(direction='maximize', study_name="RFC")
-        study.optimize(lgbm_objective, num_trail)
-        joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
+    #if p=='rfc':
+    #    study = optuna.create_study(direction='maximize', study_name="RFC")
+    #    study.optimize(lgbm_objective, num_trail)
+    #    joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
     if p=='xgb':
         study = optuna.create_study(direction='maximize', study_name="XGB")
-        study.optimize(lgbm_objective, num_trail)
+        study.optimize(xgb_objective, num_trail)
         joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
     if p=='cat':
         study = optuna.create_study(direction='maximize', study_name="CAT")
-        study.optimize(lgbm_objective, num_trail)
+        study.optimize(cat_objective, num_trail)
         joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
 
 def train_and_predict(p='lgb'):
@@ -158,15 +158,17 @@ def train_and_predict(p='lgb'):
     return model
 
 if __name__=='__main__':
-    tune = False
-    p = 'lgbm'
+    warnings.filterwarnings("ignore")
+    tune = True
+    p = 'xgb'
     if tune:
         op()
-    jl = joblib.load(os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
-    print('Best Trial', jl.best_trial.params)
-    wandb.init(project="multi-class-prediction-of-obesity-risk", config=jl.best_trial.params, name='lgb_fold50_op5')
-    model = train_and_predict()
-    train_scores, val_scores, _, _ = cross_val_model(train, test, model, verbose=True) # 有test predict
-    wandb.log({"train_acc": np.array(train_scores).mean()})
-    wandb.log({"val_acc": np.array(val_scores).mean()})
-    #log_summary(lgbm, save_model_checkpoint=True)# 上傳model與feature importance
+    if not tune:
+        jl = joblib.load(os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+        print('Best Trial', jl.best_trial.params)
+        wandb.init(project="multi-class-prediction-of-obesity-risk", config=jl.best_trial.params, name='lgb_fold50_op5')
+        model = train_and_predict()
+        train_scores, val_scores, _, _ = cross_val_model(train, test, model, verbose=True) # 有test predict
+        wandb.log({"train_acc": np.array(train_scores).mean()})
+        wandb.log({"val_acc": np.array(val_scores).mean()})
+        #log_summary(lgbm, save_model_checkpoint=True)# 上傳model與feature importance
