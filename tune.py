@@ -80,7 +80,7 @@ def lgbm_objective(trial):
         'reg_alpha' : trial.suggest_float('reg_alpha', .1, 10, log = True),
         'n_estimators' : 1000,
         'random_state' : cfg.RANDOM_SEED,
-        'device_type' : "gpu",
+        'device_type' : "cpu",
         'num_leaves': trial.suggest_int('num_leaves', 10, 1000),
         'objective': 'multiclass_ova',
         #'boosting_type' : 'dart',
