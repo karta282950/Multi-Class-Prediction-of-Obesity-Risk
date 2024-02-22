@@ -1,3 +1,5 @@
+from model import *
+import pandas as pd
 import sys
 
 from sklearn.compose import ColumnTransformer
@@ -64,15 +66,9 @@ categorical_columns.remove('NObeyesdad')
 # empty dataframe to store score, & train / test predictions.
 score_list, oof_list, predict_list = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-def train_and_predict(train, test, test_ids, score_list, oof_list, predict_list, categorical_columns, numerical_columns, target_mapping, exp_name):
-    RFC = make_pipeline(
-            ExtractFeatures,
-            MEstimateEncoder(cols=['Gender','family_history_with_overweight','FAVC','CAEC',
-                                    'SMOKE','SCC','CALC','MTRANS']),
-            RandomForestClassifier(random_state=cfg.RANDOM_SEED)
-            )
+def main():
+    pass
 
-    RFC = cross_val_model(RFC, train, test, test_ids, score_list, oof_list, predict_list, categorical_columns, numerical_columns, target_mapping, exp_name)
 
-    return RFC
-
+if __name__ == "__main__":
+    main()

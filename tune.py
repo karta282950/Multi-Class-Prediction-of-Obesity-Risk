@@ -9,6 +9,7 @@ from lightgbm import LGBMClassifier
 import numpy as np
 import pandas as pd
 import os
+import time
 import optuna
 import joblib
 import warnings
@@ -25,7 +26,6 @@ from omegaconf import DictConfig
 import hydra
 class cfg:
     my_path = os.path.abspath(os.path.dirname(__file__))
-
     file_path = os.path.join(my_path, 'data')
     RANDOM_SEED = 42
     target_mapping = {
@@ -37,6 +37,7 @@ class cfg:
                   'Obesity_Type_II':5 ,
                   'Obesity_Type_III':6
                   }
+    exp_name = 'exp001'
 
 AgeRounder = FunctionTransformer(age_rounder)
 HeightRounder = FunctionTransformer(height_rounder)
@@ -80,7 +81,7 @@ def lgbm_objective(trial):
         'reg_alpha' : trial.suggest_float('reg_alpha', .1, 10, log = True),
         'n_estimators' : 1000,
         'random_state' : cfg.RANDOM_SEED,
-        'device_type' : "cpu",
+        'device_type' : "gpu",
         'num_leaves': trial.suggest_int('num_leaves', 10, 1000),
         'objective': 'multiclass_ova',
         #'boosting_type' : 'dart',
@@ -92,11 +93,11 @@ def lgbm_objective(trial):
                                     'Gender','family_history_with_overweight','FAVC','CAEC', 'SMOKE','SCC','CALC','MTRANS']),
                                 LGBMClassifier(**params,verbose=-1)
                                 )
-    val_scores, _, _ = cross_val_model(train, test, optuna_model, verbose=False)
+    _, val_scores, _, _ = cross_val_model(train, test, optuna_model, verbose=False)
     return np.array(val_scores).mean()
 
 def cal_cv(model=RFC):
-    val_scores, val_predictions, test_predictions = cross_val_model(train, test, model)
+    _, val_scores, val_predictions, test_predictions = cross_val_model(train, test, model)
 
     # Save train/test predictions in dataframes
     for k,v in cfg.target_mapping.items():
@@ -106,24 +107,24 @@ def cal_cv(model=RFC):
         predict_list[f"rfc_{k}"] = test_predictions[:,v]
 
 #@hydra.main(config_path="run/conf", config_name="tune", version_base="1.1")
-def op(p='lgbm', num_trail=5):
+def op(p='lgbm', num_trail=50):
     warnings.filterwarnings("ignore")
     if p=='lgbm':
         study = optuna.create_study(direction='maximize', study_name="LGBM")
         study.optimize(lgbm_objective, num_trail)
-        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+        joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
     if p=='rfc':
         study = optuna.create_study(direction='maximize', study_name="RFC")
         study.optimize(lgbm_objective, num_trail)
-        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+        joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
     if p=='xgb':
         study = optuna.create_study(direction='maximize', study_name="XGB")
         study.optimize(lgbm_objective, num_trail)
-        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+        joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
     if p=='cat':
         study = optuna.create_study(direction='maximize', study_name="CAT")
         study.optimize(lgbm_objective, num_trail)
-        joblib.dump(study, os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+        joblib.dump(study, os.path.join(cfg.my_path, f'output/train/{p}_optuna_5fold_{num_trail}trail.pkl'))
 
 def train_and_predict(p='lgb'):
     if p=='lgb':
@@ -133,20 +134,39 @@ def train_and_predict(p='lgb'):
                                   ('cat', OneHotEncoder(handle_unknown="ignore"), categorical_columns)]),
                         LGBMClassifier(**jl.best_params, verbose=-1)
                     )
-    return model
-
-if __name__=='__main__':
-    op()
-    jl = joblib.load(os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_5trail.pkl'))
-    print('Best Trial', jl.best_trial.params)
-    wandb.init(project="multi-class-prediction-of-obesity-risk", config=jl.best_trial.params, name='lgb_fold5_op5')
-
-    lgbm = make_pipeline(
+    if p=='rfc':
+        model = make_pipeline(
                         ColumnTransformer(
                         transformers=[('num', StandardScaler(), numerical_columns),
                                   ('cat', OneHotEncoder(handle_unknown="ignore"), categorical_columns)]),
                         LGBMClassifier(**jl.best_params, verbose=-1)
                     )
-    val_scores, _, _ = cross_val_model(train, test, lgbm, verbose=True) # 有test predict
+    if p=='cat':
+        model = make_pipeline(
+                        ColumnTransformer(
+                        transformers=[('num', StandardScaler(), numerical_columns),
+                                  ('cat', OneHotEncoder(handle_unknown="ignore"), categorical_columns)]),
+                        LGBMClassifier(**jl.best_params, verbose=-1)
+                    )
+    if p=='xgb':
+        model = make_pipeline(
+                        ColumnTransformer(
+                        transformers=[('num', StandardScaler(), numerical_columns),
+                                  ('cat', OneHotEncoder(handle_unknown="ignore"), categorical_columns)]),
+                        LGBMClassifier(**jl.best_params, verbose=-1)
+                    )
+    return model
+
+if __name__=='__main__':
+    tune = False
+    p = 'lgbm'
+    if tune:
+        op()
+    jl = joblib.load(os.path.join(cfg.my_path, 'output/train/lgb_optuna_5fold_50trail.pkl'))
+    print('Best Trial', jl.best_trial.params)
+    wandb.init(project="multi-class-prediction-of-obesity-risk", config=jl.best_trial.params, name='lgb_fold50_op5')
+    model = train_and_predict()
+    train_scores, val_scores, _, _ = cross_val_model(train, test, model, verbose=True) # 有test predict
+    wandb.log({"train_acc": np.array(train_scores).mean()})
     wandb.log({"val_acc": np.array(val_scores).mean()})
-    log_summary(lgbm, save_model_checkpoint=True)
+    #log_summary(lgbm, save_model_checkpoint=True)# 上傳model與feature importance

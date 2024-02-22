@@ -62,7 +62,8 @@ def cross_val_model(train, test, estimators, cv=skf, verbose=True):
         
         test_predictions += model.predict_proba(test)/cv.get_n_splits()
         valid_predictions[valid_ind] = model.predict_proba(X_valid)
+        train_scores.append(accuracy_score(y_true=y_train,y_pred=model.predict(X_train)))
         val_scores.append(accuracy_score(y_true=y_valid,y_pred=model.predict(X_valid)))
     if verbose: 
         print(f"Average Mean Accuracy Score: {np.array(val_scores).mean()}")
-    return val_scores, valid_predictions, test_predictions
+    return train_scores, val_scores, valid_predictions, test_predictions

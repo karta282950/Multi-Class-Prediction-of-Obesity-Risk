@@ -31,8 +31,8 @@ def lgbm_objective(train, test, ExtractFeatures, trial):
                                     'Gender','family_history_with_overweight','FAVC','CAEC', 'SMOKE','SCC','CALC','MTRANS']),
                                 LGBMClassifier(**params,verbose=-1)
                                 )
-    val_scores, _, _ = cross_val_model(train, test, optuna_model, verbose=False)
-    return np.array(val_scores).mean()
+    train_scores, val_scores, valid_predictions, test_predictions = cross_val_model(train, test, optuna_model, verbose=False)
+    return np.array(train_scores).mean(), np.array(val_scores).mean(), valid_predictions, test_predictions
 
 # Optuna study for XGB Model
 def xgb_objective(train, test, trial):
@@ -63,15 +63,13 @@ def xgb_objective(train, test, trial):
                     XGBClassifier(**params,seed=cfg.RANDOM_SEED)
                    )
     
-    val_scores, _, _ = cross_val_model(train, test, optuna_model, verbose=False)
-    return np.array(val_scores).mean()
-
+    train_scores, val_scores, valid_predictions, test_predictions = cross_val_model(train, test, optuna_model, verbose=False)
+    return np.array(train_scores).mean(), np.array(val_scores).mean(), valid_predictions, test_predictions
 
 # Optuna Function For Catboost Model
 def cat_objective(train, test, ExtractFeatures, trial):
     
     params = {
-        
         'iterations': 1000,  # High number of estimators
         'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
         'depth': trial.suggest_int('depth', 3, 10),
@@ -91,6 +89,5 @@ def cat_objective(train, test, ExtractFeatures, trial):
 #                         MEstimateEncoder(cols = raw_cat_cols),
                         CatBoostClassifier(**params,cat_features=cat_features)
                         )
-    val_scores,_,_ = cross_val_model(train, test, optuna_model,verbose = False)
-    return np.array(val_scores).mean()
-    
+    train_scores, val_scores, valid_predictions, test_predictions = cross_val_model(train, test, optuna_model, verbose=False)
+    return np.array(train_scores).mean(), np.array(val_scores).mean(), valid_predictions, test_predictions
